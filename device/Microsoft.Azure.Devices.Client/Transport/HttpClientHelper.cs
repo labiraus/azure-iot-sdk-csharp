@@ -59,19 +59,27 @@ namespace Microsoft.Azure.Devices.Client.Transport
             this.defaultErrorMapping =
                 new ReadOnlyDictionary<HttpStatusCode, Func<HttpResponseMessage, Task<Exception>>>(defaultErrorMapping);
 
+            HttpClientHandler handler = null;
 #if !WINDOWS_UWP && !PCL && !NETSTANDARD1_3
-            WebRequestHandler handler = null;
             if (clientCert != null)
             {
                 handler = new WebRequestHandler();
-                handler.ClientCertificates.Add(clientCert);
+                (handler as WebRequestHandler).ClientCertificates.Add(clientCert);
                 this.usingX509ClientCert = true;
             }
-
-            this.httpClientObj = handler != null ? new HttpClient(handler) : new HttpClient();
-#else
-            this.httpClientObj = new HttpClient();
 #endif
+#if NETSTANDARD1_3
+            if (clientCert != null)
+            {
+                handler = new HttpClientHandler
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                };
+                (handler as HttpClientHandler).ClientCertificates.Add(clientCert);
+                this.usingX509ClientCert = true;
+            }
+#endif
+            this.httpClientObj = handler != null ? new HttpClient(handler) : new HttpClient();
 
             this.httpClientObj.BaseAddress = this.baseAddress;
             this.httpClientObj.Timeout = timeout;
